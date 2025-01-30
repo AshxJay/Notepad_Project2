@@ -8,6 +8,7 @@ const Notepad = () => {
   const [currentNote, setCurrentNote] = useState(null); 
   const [editingNoteName, setEditingNoteName] = useState(null); 
   const [newName, setNewName] = useState(''); 
+
   const handleChange = (e) => {
     setText(e.target.value);
     setIsSaved(false);
@@ -36,6 +37,20 @@ const Notepad = () => {
   const handleAddNote = () => {
     setText(''); 
     setCurrentNote(null); 
+  };
+
+  const handleDeleteNote = (index) => {
+    const updatedNotes = notes.filter((_, i) => i !== index);
+    setNotes(updatedNotes);
+
+    if (currentNote === index) {
+      setText('');
+      setCurrentNote(null);
+    } else if (currentNote > index) {
+      setCurrentNote(currentNote - 1);
+    }
+
+    localStorage.setItem('notes', JSON.stringify(updatedNotes));
   };
 
   const handleNoteNameChange = (e) => {
@@ -92,6 +107,15 @@ const Notepad = () => {
                   >
                     ✎
                   </button>
+                  <button
+                    className="delete-note-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteNote(index);
+                    }}
+                  >
+                    🗑️
+                  </button>
                 </div>
               )}
             </div>
@@ -117,3 +141,4 @@ const Notepad = () => {
 };
 
 export default Notepad;
+
