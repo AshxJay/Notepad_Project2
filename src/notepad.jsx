@@ -1,144 +1,65 @@
-import { useState, useEffect } from 'react';
-import './index.css';
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
 
-const Notepad = () => {
-  const [text, setText] = useState('');
-  const [isSaved, setIsSaved] = useState(true);  
-  const [notes, setNotes] = useState([]); 
-  const [currentNote, setCurrentNote] = useState(null); 
-  const [editingNoteName, setEditingNoteName] = useState(null); 
-  const [newName, setNewName] = useState(''); 
+const app = express();
 
-  const handleChange = (e) => {
-    setText(e.target.value);
-    setIsSaved(false);
-  };
+app.use(cors());
+app.use(express.json());
 
-  const handleSave = () => {
-    if (currentNote !== null) {
-      const updatedNotes = [...notes];
-      updatedNotes[currentNote] = { text, name: updatedNotes[currentNote].name, id: currentNote };
-      setNotes(updatedNotes);
-    } else {
-      const newNote = { text, name: 'New Note', id: notes.length }; 
-      setNotes([...notes, newNote]);
-      setCurrentNote(notes.length); 
-    }
-    localStorage.setItem('notes', JSON.stringify(notes));
-    setIsSaved(true); 
-  };
+mongoose.connect('mongodb://127.0.0.1:27017/invoice_db', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.log('MongoDB connection error:', err));
 
-  const handleNoteClick = (index) => {
-    setCurrentNote(index);
-    setText(notes[index].text);
-    setIsSaved(true); 
-  };
+const invoiceSchema = new mongoose.Schema({
+  invoiceNumber: String,
+  date: String,
+  dueDate: String,
+  billTo: {
+    name: String,
+    address: String,
+    email: String
+  },
+  items: [{
+    description: String,
+    quantity: Number,
+    rate: Number,
+    amount: Number
+  }],
+  notes: String,
+  subtotal: Number,
+  tax: Number,
+  total: Number
+}, { timestamps: true });
 
-  const handleAddNote = () => {
-    setText(''); 
-    setCurrentNote(null); 
-  };
+const Invoice = mongoose.model('Invoice', invoiceSchema);
 
-  const handleDeleteNote = (index) => {
-    const updatedNotes = notes.filter((_, i) => i !== index);
-    setNotes(updatedNotes);
 
-    if (currentNote === index) {
-      setText('');
-      setCurrentNote(null);
-    } else if (currentNote > index) {
-      setCurrentNote(currentNote - 1);
-    }
+app.post('/api/invoices', async (req, res) => {
+  try {
+    console.log('Received data:', req.body);
+    const newInvoice = new Invoice(req.body);
+    const savedInvoice = await newInvoice.save();
+    res.status(201).json(savedInvoice);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    localStorage.setItem('notes', JSON.stringify(updatedNotes));
-  };
+app.get('/api/invoices', async (req, res) => {
+  try {
+    const invoices = await Invoice.find();
+    res.json(invoices);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-  const handleNoteNameChange = (e) => {
-    setNewName(e.target.value);
-  };
-
-  const handleChangeNoteName = (index) => {
-    const updatedNotes = [...notes];
-    updatedNotes[index].name = newName;
-    setNotes(updatedNotes);
-    setEditingNoteName(null); 
-    setIsSaved(false); 
-  };
-
-  const toggleEditNoteName = (index) => {
-    setEditingNoteName(index);
-    setNewName(notes[index].name); 
-  };
-
-  useEffect(() => {
-    const savedNotes = JSON.parse(localStorage.getItem('notes'));
-    if (savedNotes) {
-      setNotes(savedNotes);
-    }
-  }, []);
-
-  return (
-    <div className="notepad-container">
-      <div className="sidebar">
-        <button onClick={handleAddNote} className="add-note-button">Add Note</button>
-        <div className="note-list">
-          {notes.map((note, index) => (
-            <div key={note.id} className="note-item">
-              {editingNoteName === index ? (
-                <div className="note-name-edit">
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={handleNoteNameChange}
-                    onBlur={() => handleChangeNoteName(index)}
-                    autoFocus
-                    className="note-name-input"
-                  />
-                </div>
-              ) : (
-                <div className="note-item-clickable" onClick={() => handleNoteClick(index)}>
-                  <span>{note.name}</span>
-                  <button
-                    className="edit-name-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleEditNoteName(index);
-                    }}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    className="delete-note-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteNote(index);
-                    }}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="notepad-main">
-        <textarea
-          className="notepad"
-          value={text}
-          onChange={handleChange}
-          placeholder="Start typing..."
-        />
-        <div className="save-status">
-          {isSaved ? <span>Saved</span> : <span>Unsaved</span>}
-        </div>
-        <button onClick={handleSave} className="save-button">
-          Save
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default Notepad;
-
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
